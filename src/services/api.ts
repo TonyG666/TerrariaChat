@@ -14,7 +14,6 @@ export interface ChatResponse {
 
 export interface SearchQuery {
   query: string;
-  context?: string[];
 }
 
 export interface SearchResult {

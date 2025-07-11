@@ -5,10 +5,10 @@ A comprehensive AI-powered chatbot for Terraria players, providing instant answe
 ## Features
 
 - 🎮 **Interactive Chat Interface**: Beautiful, responsive chat UI with Terraria-themed design
-- 🤖 **AI-Powered Responses**: Powered by Claude AI for intelligent, context-aware answers
-- 🔍 **Vector Search**: Advanced search through Terraria knowledge base
-- 💾 **Conversation History**: Persistent chat sessions with message history
-- ⚡ **Fast Performance**: Redis caching for quick response times
+- 🤖 **AI-Powered Responses**: Powered by Groq's Llama 3 for intelligent, context-aware answers
+- 🔍 **Smart Search**: Advanced search through Terraria knowledge base
+- 💾 **Session Management**: Persistent chat sessions with message history
+- ⚡ **Fast Performance**: Groq API provides lightning-fast responses
 - 📱 **Mobile Responsive**: Works perfectly on all devices
 
 ## Tech Stack
@@ -21,16 +21,12 @@ A comprehensive AI-powered chatbot for Terraria players, providing instant answe
 
 ### Backend
 - **FastAPI** (Python) for API server
-- **Claude AI** for natural language processing
-- **Supabase** for database and vector storage
-- **Redis** for caching
+- **Groq API** (Llama 3) for natural language processing
 - **Docker** for containerization
 
 ### Deployment
 - **Vercel** for frontend hosting
-- **Render/Railway** for backend deployment
-- **Supabase** for managed database
-- **Redis Labs** for managed Redis
+- **Render** for backend deployment
 
 ## Quick Start
 
@@ -57,73 +53,91 @@ pip install -r requirements.txt
 # Set up environment variables (copy .env.example to .env)
 cp .env.example .env
 
+# Add your Groq API key to .env
+GROQ_API_KEY=your_groq_api_key_here
+
 # Run the FastAPI server
 uvicorn main:app --reload
 ```
 
 ### Environment Variables
-Create a `.env` file in the root directory:
+
+#### For Development (.env file):
 ```
+GROQ_API_KEY=your_groq_api_key_here
 VITE_API_URL=http://localhost:8000
 ```
 
-For backend deployment, set these environment variables:
+#### For Production (Render):
 ```
-SUPABASE_URL=your_supabase_project_url
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-REDIS_HOST=your_redis_host
-REDIS_PORT=6379
-REDIS_PASSWORD=your_redis_password
-ANTHROPIC_API_KEY=your_claude_api_key
+GROQ_API_KEY=your_groq_api_key_here
 ```
 
-## Database Schema
+## Getting Groq API Key
 
-### Conversations Table
-```sql
-CREATE TABLE conversations (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    session_id TEXT NOT NULL,
-    user_message TEXT NOT NULL,
-    bot_response TEXT NOT NULL,
-    timestamp TIMESTAMPTZ DEFAULT NOW()
-);
-```
+1. Sign up at [console.groq.com](https://console.groq.com)
+2. Go to Dashboard → API Keys
+3. Create a new API key
+4. Copy the key to your environment variables
 
-### Terraria Knowledge Table
-```sql
-CREATE TABLE terraria_knowledge (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    item_name TEXT NOT NULL,
-    category TEXT NOT NULL,
-    content TEXT NOT NULL,
-    metadata JSONB,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
+**Free Tier:** 6,000 tokens/minute - perfect for development and moderate usage!
 
 ## Deployment
 
 ### Frontend (Vercel)
 1. Connect your GitHub repository to Vercel
-2. Configure environment variables
+2. Set environment variable: `VITE_API_URL=https://your-backend-url.onrender.com`
 3. Deploy automatically on push
 
-### Backend (Render/Railway)
-1. Connect your GitHub repository
-2. Configure environment variables
-3. Deploy with Docker
-
-### Database (Supabase)
-1. Create a new Supabase project
-2. Run the SQL schema setup
-3. Configure Row Level Security policies
+### Backend (Render)
+1. Connect your GitHub repository to Render
+2. Create a new Web Service
+3. Set Root Directory to `src/backend`
+4. Add environment variable: `GROQ_API_KEY=your_key_here`
+5. Deploy with Docker
 
 ## API Endpoints
 
+- `GET /` - API status and health check
 - `POST /chat` - Send message to chatbot
 - `POST /search` - Search Terraria knowledge base
-- `GET /health` - Health check endpoint
+- `GET /health` - Detailed health check
+
+## Features
+
+### Enhanced Knowledge Base
+- Detailed boss strategies and mechanics
+- Weapon stats and crafting recipes
+- NPC requirements and housing info
+- Crafting station information
+- Progression guides
+
+### Intelligent Responses
+- Context-aware answers using Groq's Llama 3
+- Fallback responses for offline scenarios
+- Gaming-focused language and terminology
+- Practical tips and strategies
+
+### Modern UI/UX
+- Terraria-themed dark design
+- Smooth animations and transitions
+- Mobile-responsive layout
+- Real-time typing indicators
+- Message history and session management
+
+## Architecture
+
+```
+Frontend (React/TypeScript)
+    ↓
+API Service Layer
+    ↓
+FastAPI Backend
+    ↓
+Groq API (Llama 3)
+    ↓
+Enhanced Knowledge Base
+```
 
 ## Contributing
 
@@ -139,3 +153,7 @@ This project is licensed under the MIT License.
 ## Support
 
 For questions or issues, please open a GitHub issue or contact the maintainers.
+
+---
+
+**Powered by Groq's Llama 3 • Built with React & FastAPI**
