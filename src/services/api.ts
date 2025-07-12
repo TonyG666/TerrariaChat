@@ -26,27 +26,46 @@ class ApiService {
   private sessionId: string | null = null;
 
   constructor(baseUrl: string = API_BASE_URL) {
-    this.baseUrl = baseUrl;
+    // Remove trailing slash to prevent double slashes
+    this.baseUrl = baseUrl.replace(/\/$/, '');
+    console.log('🚀 API Service initialized with baseUrl:', this.baseUrl);
+    console.log('🔧 Environment VITE_API_URL:', import.meta.env.VITE_API_URL);
   }
 
   async sendMessage(content: string): Promise<ChatResponse> {
     try {
-      const response = await fetch(`${this.baseUrl}/chat`, {
+      const url = `${this.baseUrl}/chat`;
+      console.log('📤 Sending message to:', url);
+      console.log('💬 Message content:', content);
+      console.log('🔑 Session ID:', this.sessionId);
+      
+      const requestBody = {
+        content,
+        session_id: this.sessionId,
+      };
+      
+      console.log('📦 Request body:', requestBody);
+      
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          content,
-          session_id: this.sessionId,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
+      console.log('📊 Response status:', response.status);
+      console.log('✅ Response ok:', response.ok);
+      console.log('🌐 Response headers:', Object.fromEntries(response.headers.entries()));
+
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorText = await response.text();
+        console.error('❌ API Error Response:', errorText);
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
       }
 
       const data: ChatResponse = await response.json();
+      console.log('📥 Received response:', data);
       
       // Store session ID for subsequent requests
       if (data.session_id) {
@@ -55,7 +74,13 @@ class ApiService {
 
       return data;
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('💥 Error in sendMessage:', error);
+      console.error('🔍 Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        baseUrl: this.baseUrl,
+        content: content,
+        errorType: error instanceof TypeError ? 'Network Error' : 'Other Error'
+      });
       throw error;
     }
   }

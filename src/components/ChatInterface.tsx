@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, MessageCircle, Zap, Shield, Sword } from 'lucide-react';
+import { useChat } from '../hooks/useChat';
 
 interface Message {
   id: string;
@@ -10,16 +11,8 @@ interface Message {
 }
 
 const ChatInterface: React.FC = () => {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      content: 'Welcome to the Terraria Helper! I\'m here to answer all your questions about items, NPCs, bosses, crafting, and gameplay mechanics. What would you like to know?',
-      sender: 'bot',
-      timestamp: new Date(),
-    },
-  ]);
+  const { messages, isLoading, sendMessage } = useChat();
   const [inputValue, setInputValue] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -33,72 +26,18 @@ const ChatInterface: React.FC = () => {
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
 
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      content: inputValue,
-      sender: 'user',
-      timestamp: new Date(),
-    };
-
-    setMessages(prev => [...prev, userMessage]);
+    console.log('🚀 ChatInterface: Starting to send message');
+    
+    const messageContent = inputValue;
     setInputValue('');
-    setIsLoading(true);
-
-    // Add typing indicator
-    const typingMessage: Message = {
-      id: 'typing',
-      content: 'Thinking...',
-      sender: 'bot',
-      timestamp: new Date(),
-      isTyping: true,
-    };
-    setMessages(prev => [...prev, typingMessage]);
-
+    
     try {
-      // Simulate API call to backend
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Remove typing indicator
-      setMessages(prev => prev.filter(msg => msg.id !== 'typing'));
-      
-      // Add bot response
-      const botResponse: Message = {
-        id: (Date.now() + 1).toString(),
-        content: generateTerrariaResponse(inputValue),
-        sender: 'bot',
-        timestamp: new Date(),
-      };
-      
-      setMessages(prev => [...prev, botResponse]);
+      console.log('📞 ChatInterface: Calling sendMessage');
+      await sendMessage(messageContent);
+      console.log('✅ ChatInterface: Message sent successfully');
     } catch (error) {
-      console.error('Error sending message:', error);
-      setMessages(prev => prev.filter(msg => msg.id !== 'typing'));
-    } finally {
-      setIsLoading(false);
+      console.error('💥 ChatInterface: Failed to send message:', error);
     }
-  };
-
-  const generateTerrariaResponse = (query: string): string => {
-    // This is a placeholder - in production, this would call your FastAPI backend
-    const lowercaseQuery = query.toLowerCase();
-    
-    if (lowercaseQuery.includes('boss')) {
-      return 'Terraria has many challenging bosses! Some key ones include: Eye of Cthulhu (usually first boss), Skeletron (guards the Dungeon), Wall of Flesh (hardmode trigger), and mechanical bosses like The Destroyer, Skeletron Prime, and The Twins. Each boss has unique strategies and drops valuable loot!';
-    }
-    
-    if (lowercaseQuery.includes('weapon') || lowercaseQuery.includes('sword')) {
-      return 'Terraria offers hundreds of weapons across different classes! Melee weapons like the Terra Blade, ranged weapons like the Megashark, magic weapons like the Razorblade Typhoon, and summoner weapons like the Stardust Dragon Staff. What class are you interested in?';
-    }
-    
-    if (lowercaseQuery.includes('npc')) {
-      return 'NPCs are crucial for progression! The Guide helps with crafting recipes, the Merchant sells basic items, the Nurse heals you, and the Goblin Tinkerer reforges items. Each NPC has specific housing requirements and preferences for biomes and neighbors.';
-    }
-    
-    if (lowercaseQuery.includes('craft') || lowercaseQuery.includes('recipe')) {
-      return 'Crafting is at the heart of Terraria! You\'ll need various crafting stations like Workbench, Furnace, Anvil, and more specialized ones. The Guide NPC can show you recipes for any item you have materials for. What are you trying to craft?';
-    }
-    
-    return 'That\'s a great question about Terraria! While I\'m still learning about this specific topic, I can help you with information about bosses, weapons, NPCs, crafting, building, and general gameplay mechanics. Could you be more specific about what you\'d like to know?';
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {

@@ -23,6 +23,8 @@ export const useChat = () => {
   const sendMessage = useCallback(async (content: string) => {
     if (!content.trim()) return;
 
+    console.log('🎯 useChat: Sending message:', content);
+
     const userMessage: Message = {
       id: Date.now().toString(),
       content,
@@ -45,6 +47,7 @@ export const useChat = () => {
 
     try {
       const response = await apiService.sendMessage(content);
+      console.log('🎉 useChat: Received response:', response);
       
       // Remove typing indicator
       setMessages(prev => prev.filter(msg => msg.id !== 'typing'));
@@ -59,7 +62,7 @@ export const useChat = () => {
       
       setMessages(prev => [...prev, botResponse]);
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('💀 useChat: Error sending message:', error);
       
       // Remove typing indicator
       setMessages(prev => prev.filter(msg => msg.id !== 'typing'));
@@ -67,7 +70,12 @@ export const useChat = () => {
       // Add error message
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: 'Sorry, I encountered an error. Please try again later.',
+        content: `Sorry, I encountered an error: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }. 
+        
+Debug info: Check browser console for details.
+Please try again later.`,
         sender: 'bot',
         timestamp: new Date(),
       };
