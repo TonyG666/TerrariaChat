@@ -1,14 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, MessageCircle, Zap, Shield, Sword } from 'lucide-react';
+import { Send } from 'lucide-react';
 import { useChat } from '../hooks/useChat';
-
-interface Message {
-  id: string;
-  content: string;
-  sender: 'user' | 'bot';
-  timestamp: Date;
-  isTyping?: boolean;
-}
+// Import your image here (uncomment and update the path when you add your image)
+import botAvatar from '../assets/images/tr_icon.png';
 
 const ChatInterface: React.FC = () => {
   const { messages, isLoading, sendMessage } = useChat();
@@ -26,17 +20,13 @@ const ChatInterface: React.FC = () => {
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
 
-    console.log('🚀 ChatInterface: Starting to send message');
-    
     const messageContent = inputValue;
     setInputValue('');
     
     try {
-      console.log('📞 ChatInterface: Calling sendMessage');
       await sendMessage(messageContent);
-      console.log('✅ ChatInterface: Message sent successfully');
     } catch (error) {
-      console.error('💥 ChatInterface: Failed to send message:', error);
+      console.error('Failed to send message:', error);
     }
   };
 
@@ -48,110 +38,94 @@ const ChatInterface: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800">
-      {/* Header */}
-      <div className="bg-slate-800/90 backdrop-blur-sm border-b border-slate-700 p-4">
-        <div className="flex items-center justify-between max-w-4xl mx-auto">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-blue-600 rounded-lg">
-              <Sword className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-white">Terraria Helper</h1>
-              <p className="text-slate-300 text-sm">Your guide to the world of Terraria</p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="flex items-center space-x-1 px-3 py-1 bg-green-600/20 rounded-full">
-              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-              <span className="text-green-400 text-sm">Online</span>
-            </div>
+    <div className="flex flex-col h-screen bg-custom-bg">
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-3xl mx-auto px-4 py-6">
+          <div className="space-y-6">
+            {messages.map((message) => (
+              <div key={message.id} className="group">
+                {message.sender === 'user' ? (
+                  <div className="flex justify-end">
+                    <div className="max-w-2xl">
+                      <div className="bg-white rounded-2xl px-4 py-3">
+                        <p className="text-gray-900 whitespace-pre-wrap">
+                          {message.content}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex space-x-3">
+                    <div className="flex-shrink-0">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
+                        <img 
+                          src={botAvatar} 
+                          alt="Terraria Helper" 
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-lg font-bold text-gray-900 mb-1">
+                        Terraria Expert
+                      </div>
+                      <div className={`prose prose-sm max-w-none ${
+                        message.isTyping ? 'animate-pulse' : ''
+                      }`}>
+                        <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">
+                          {message.content}
+                        </p>
+                      </div>
+                      {!message.isTyping && (
+                        <div className="flex items-center space-x-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <span className="text-xs text-gray-500">
+                            {message.timestamp.toLocaleTimeString([], { 
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            })}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+            <div ref={messagesEndRef} />
           </div>
         </div>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 max-w-4xl mx-auto w-full">
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
-            <div
-              className={`max-w-xs sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl p-4 rounded-2xl ${
-                message.sender === 'user'
-                  ? 'bg-blue-600 text-white ml-auto'
-                  : 'bg-slate-700 text-slate-100 mr-auto'
-              } ${
-                message.isTyping ? 'animate-pulse' : ''
-              } shadow-lg hover:shadow-xl transition-all duration-200`}
-            >
-              {message.sender === 'bot' && !message.isTyping && (
-                <div className="flex items-center space-x-2 mb-2">
-                  <Shield className="w-4 h-4 text-blue-400" />
-                  <span className="text-blue-400 text-sm font-medium">Terraria Helper</span>
-                </div>
-              )}
-              <p className="text-sm sm:text-base leading-relaxed whitespace-pre-wrap">
-                {message.content}
-              </p>
-              <div className="flex items-center justify-between mt-2">
-                <span className="text-xs opacity-70">
-                  {message.timestamp.toLocaleTimeString([], { 
-                    hour: '2-digit', 
-                    minute: '2-digit' 
-                  })}
-                </span>
-                {message.sender === 'bot' && !message.isTyping && (
-                  <div className="flex items-center space-x-1">
-                    <Zap className="w-3 h-3 text-yellow-400" />
-                    <span className="text-xs text-yellow-400">AI</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        ))}
-        <div ref={messagesEndRef} />
-      </div>
-
       {/* Input */}
-      <div className="bg-slate-800/90 backdrop-blur-sm border-t border-slate-700 p-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex items-center space-x-3">
-            <div className="flex-1 relative">
-              <textarea
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Ask me anything about Terraria..."
-                className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-2xl text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 resize-none transition-all duration-200"
-                rows={1}
-                disabled={isLoading}
-              />
-              <div className="absolute right-3 top-3 text-slate-400">
-                <MessageCircle className="w-5 h-5" />
-              </div>
-            </div>
+      <div className="flex-shrink-0 border-t border-gray-200 bg-custom-bg">
+        <div className="max-w-3xl mx-auto px-4 py-4">
+          <div className="flex items-center gap-2">
+            <textarea
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Message Terraria Helper..."
+              className="flex-1 px-4 py-3 border border-gray-300 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-brand-orange focus:border-transparent transition-all duration-200 text-gray-900 placeholder-gray-500"
+              rows={1}
+              disabled={isLoading}
+              style={{
+                minHeight: '48px',
+                maxHeight: '200px',
+              }}
+            />
             <button
               onClick={handleSendMessage}
               disabled={!inputValue.trim() || isLoading}
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-2xl transition-all duration-200 flex items-center space-x-2 shadow-lg hover:shadow-xl"
+              className="p-2 bg-brand-orange hover:bg-brand-orange/80 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg transition-all duration-200 flex items-center justify-center"
+              style={{ minWidth: '40px', minHeight: '40px' }}
             >
               <Send className="w-5 h-5" />
-              <span className="hidden sm:block">Send</span>
             </button>
           </div>
-          <div className="flex items-center justify-between mt-3 text-xs text-slate-400">
-            <div className="flex items-center space-x-4">
-              <span>Press Enter to send</span>
-              <span>•</span>
-              <span>Shift + Enter for new line</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <span>Powered by Claude AI</span>
-              <Zap className="w-3 h-3 text-yellow-400" />
-            </div>
+          <div className="mt-2 text-xs text-gray-500 text-center">
+            Press Enter to send • Shift + Enter for new line
           </div>
         </div>
       </div>

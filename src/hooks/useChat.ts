@@ -13,7 +13,7 @@ export const useChat = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      content: 'Welcome to the Terraria Helper! I\'m here to answer all your questions about items, NPCs, bosses, crafting, and gameplay mechanics. What would you like to know?',
+      content: 'Hello! I\'m your Terraria Helper. I can answer questions about items, NPCs, bosses, crafting, and gameplay mechanics. What would you like to know?',
       sender: 'bot',
       timestamp: new Date(),
     },
@@ -57,7 +57,7 @@ export const useChat = () => {
         id: (Date.now() + 1).toString(),
         content: response.response,
         sender: 'bot',
-        timestamp: new Date(response.timestamp),
+        timestamp: new Date(), // Use client's local time instead of server time
       };
       
       setMessages(prev => [...prev, botResponse]);
@@ -90,7 +90,7 @@ Please try again later.`,
     setMessages([
       {
         id: '1',
-        content: 'Welcome to the Terraria Helper! I\'m here to answer all your questions about items, NPCs, bosses, crafting, and gameplay mechanics. What would you like to know?',
+        content: 'Hello! I\'m your Terraria Helper. I can answer questions about items, NPCs, bosses, crafting, and gameplay mechanics. What would you like to know?',
         sender: 'bot',
         timestamp: new Date(),
       },

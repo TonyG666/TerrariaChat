@@ -221,7 +221,7 @@ async def chat(message: ChatMessage):
         return ChatResponse(
             response=response,
             session_id=session_id,
-            timestamp=datetime.now()
+            timestamp=datetime.now().isoformat()
         )
         
     except Exception as e:
@@ -230,7 +230,7 @@ async def chat(message: ChatMessage):
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
-    return {"status": "healthy", "timestamp": datetime.now()}
+    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
 
 @app.post("/search")
 async def search_terraria(query: dict):
