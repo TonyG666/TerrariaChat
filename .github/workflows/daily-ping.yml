@@ -1,0 +1,67 @@
+name: Daily Ping to Web App
+
+on:
+  schedule:
+    # Run daily at 12:00 UTC (adjust timezone as needed)
+    - cron: '0 12 * * *'
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  ping-webapp:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Ping web app and Redis
+      run: |
+        # Get your web app URL (replace with your actual deployed URL)
+        WEBAPP_URL="${WEBAPP_URL:-https://terraria-chat.vercel.app}"
+        
+        echo "Pinging web app at: $WEBAPP_URL"
+        
+        # Ping the /ping endpoint
+        response=$(curl -s -w "\n%{http_code}" "$WEBAPP_URL/ping")
+        
+        # Extract response body and status code
+        http_code=$(echo "$response" | tail -n1)
+        response_body=$(echo "$response" | head -n -1)
+        
+        echo "HTTP Status Code: $http_code"
+        echo "Response: $response_body"
+        
+        # Check if the request was successful
+        if [ "$http_code" -eq 200 ]; then
+          echo "✅ Successfully pinged web app and Redis"
+          
+          # Parse the response to get ping count
+          ping_count=$(echo "$response_body" | grep -o '"ping_count":[0-9]*' | cut -d':' -f2)
+          echo "Total ping count: $ping_count"
+          
+          # You can add more processing here if needed
+          # For example, send notifications, log to external services, etc.
+          
+        else
+          echo "❌ Failed to ping web app. HTTP Status: $http_code"
+          echo "Response: $response_body"
+          exit 1
+        fi
+        
+    - name: Log ping result
+      run: |
+        echo "Daily ping completed at $(date)"
+        echo "Workflow run ID: ${{ github.run_id }}"
+        echo "Repository: ${{ github.repository }}"
+        
+    - name: Notify on failure
+      if: failure()
+      run: |
+        echo "❌ Daily ping failed!"
+        echo "Check the workflow run for details: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        
+    - name: Notify on success
+      if: success()
+      run: |
+        echo "✅ Daily ping completed successfully!"
+        echo "Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" 

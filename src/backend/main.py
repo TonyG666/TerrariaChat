@@ -6,6 +6,7 @@ from typing import List, Optional
 import os
 import json
 import httpx
+import redis
 from datetime import datetime
 
 # Initialize FastAPI app
@@ -33,6 +34,19 @@ class ChatResponse(BaseModel):
 # Groq API configuration
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+
+# Redis configuration
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
+redis_client = None
+
+try:
+    redis_client = redis.from_url(REDIS_URL, decode_responses=True)
+    # Test connection
+    redis_client.ping()
+    print("Redis connection successful")
+except Exception as e:
+    print(f"Redis connection failed: {e}")
+    redis_client = None
 
 # Enhanced Terraria knowledge base
 TERRARIA_KNOWLEDGE = {
@@ -231,6 +245,51 @@ async def chat(message: ChatMessage):
 async def health_check():
     """Health check endpoint."""
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+
+@app.get("/ping")
+async def ping_redis():
+    """Ping endpoint that interacts with Redis for GitHub Actions monitoring."""
+    try:
+        timestamp = datetime.now().isoformat()
+        
+        # Check if Redis is available
+        if redis_client is None:
+            return {
+                "status": "redis_unavailable",
+                "message": "Redis connection not available",
+                "timestamp": timestamp,
+                "ping_count": 0
+            }
+        
+        # Ping Redis
+        redis_client.ping()
+        
+        # Increment ping counter
+        ping_count = redis_client.incr("github_actions_ping_count")
+        
+        # Store last ping timestamp
+        redis_client.set("last_ping_timestamp", timestamp)
+        
+        # Store ping history (keep last 10 pings)
+        redis_client.lpush("ping_history", timestamp)
+        redis_client.ltrim("ping_history", 0, 9)
+        
+        return {
+            "status": "success",
+            "message": "Successfully pinged Redis",
+            "timestamp": timestamp,
+            "ping_count": ping_count,
+            "redis_status": "connected"
+        }
+        
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Error pinging Redis: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
+            "ping_count": 0,
+            "redis_status": "error"
+        }
 
 @app.post("/search")
 async def search_terraria(query: dict):
