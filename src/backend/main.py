@@ -7,7 +7,7 @@ import os
 import json
 import httpx
 import redis
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # Initialize FastAPI app
 app = FastAPI(title="Terraria Chatbot API", version="1.0.0")
@@ -222,9 +222,37 @@ async def root():
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(message: ChatMessage):
-    """Main chat endpoint that processes user queries about Terraria."""
+    """Main chat endpoint that processes user queries about Terraria with Redis integration."""
     try:
         session_id = message.session_id or f"session_{datetime.now().timestamp()}"
+        timestamp = datetime.now().isoformat()
+        
+        # Check if we have a cached response for this exact query
+        if redis_client:
+            query_hash = f"query:{hash(message.content)}"
+            cached_response = redis_client.get(query_hash)
+            
+            if cached_response:
+                # Increment cache hit counter
+                redis_client.incr("cache_hits")
+                print(f"Cache hit for query: {message.content[:50]}...")
+                
+                # Store in session history
+                chat_entry = {
+                    "query": message.content,
+                    "response": cached_response,
+                    "timestamp": timestamp,
+                    "cached": True
+                }
+                redis_client.lpush(f"session:{session_id}", json.dumps(chat_entry))
+                redis_client.ltrim(f"session:{session_id}", 0, 49)  # Keep last 50 messages
+                redis_client.expire(f"session:{session_id}", 86400 * 7)  # 7 days TTL
+                
+                return ChatResponse(
+                    response=cached_response,
+                    session_id=session_id,
+                    timestamp=timestamp
+                )
         
         # Search knowledge base for context
         context = search_knowledge_base(message.content)
@@ -232,10 +260,44 @@ async def chat(message: ChatMessage):
         # Get AI response
         response = await query_groq_api(message.content, context)
         
+        # Store in Redis if available
+        if redis_client:
+            # Cache the response for future similar queries
+            query_hash = f"query:{hash(message.content)}"
+            redis_client.setex(query_hash, 3600, response)  # Cache for 1 hour
+            
+            # Increment cache miss counter
+            redis_client.incr("cache_misses")
+            
+            # Store in session history
+            chat_entry = {
+                "query": message.content,
+                "response": response,
+                "timestamp": timestamp,
+                "cached": False
+            }
+            redis_client.lpush(f"session:{session_id}", json.dumps(chat_entry))
+            redis_client.ltrim(f"session:{session_id}", 0, 49)  # Keep last 50 messages
+            redis_client.expire(f"session:{session_id}", 86400 * 7)  # 7 days TTL
+            
+            # Track popular queries
+            redis_client.zincrby("popular_queries", 1, message.content.lower())
+            
+            # Track daily chat activity
+            today = datetime.now().strftime("%Y-%m-%d")
+            redis_client.incr(f"daily_chats:{today}")
+            redis_client.expire(f"daily_chats:{today}", 86400 * 7)  # 7 days TTL
+            
+            # Track total chats
+            redis_client.incr("total_chats")
+            
+            # Store last activity timestamp
+            redis_client.set("last_chat_activity", timestamp, ex=3600)
+        
         return ChatResponse(
             response=response,
             session_id=session_id,
-            timestamp=datetime.now().isoformat()
+            timestamp=timestamp
         )
         
     except Exception as e:
@@ -270,15 +332,27 @@ async def ping_redis():
         # Store last ping timestamp
         redis_client.set("last_ping_timestamp", timestamp)
         
-        # Store ping history (keep last 10 pings)
+        # Store ping history (keep last 20 pings)
         redis_client.lpush("ping_history", timestamp)
-        redis_client.ltrim("ping_history", 0, 9)
+        redis_client.ltrim("ping_history", 0, 19)
+        
+        # Add more Redis activity to keep it alive
+        # Store daily activity counter
+        today = datetime.now().strftime("%Y-%m-%d")
+        daily_pings = redis_client.incr(f"daily_pings:{today}")
+        
+        # Set expiry for counters (clean up old data)
+        redis_client.expire(f"daily_pings:{today}", 86400 * 7)  # 7 days
+        
+        # Store some dummy data to ensure Redis stays active
+        redis_client.set("last_activity", timestamp, ex=3600)  # 1 hour expiry
         
         return {
             "status": "success",
             "message": "Successfully pinged Redis",
             "timestamp": timestamp,
             "ping_count": ping_count,
+            "daily_pings": daily_pings,
             "redis_status": "connected"
         }
         
@@ -297,6 +371,139 @@ async def search_terraria(query: dict):
     try:
         results = search_knowledge_base(query.get("query", ""))
         return {"results": results, "query": query.get("query", "")}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/redis-health")
+async def redis_health():
+    """Detailed Redis health check endpoint."""
+    try:
+        timestamp = datetime.now().isoformat()
+        
+        if redis_client is None:
+            return {
+                "status": "redis_unavailable",
+                "timestamp": timestamp,
+                "details": "Redis client not initialized"
+            }
+        
+        # Test Redis connection
+        redis_client.ping()
+        
+        # Get various Redis metrics
+        total_pings = redis_client.get("github_actions_ping_count") or "0"
+        last_ping = redis_client.get("last_ping_timestamp") or "Never"
+        last_activity = redis_client.get("last_activity") or "Never"
+        
+        # Get today's ping count
+        today = datetime.now().strftime("%Y-%m-%d")
+        daily_pings = redis_client.get(f"daily_pings:{today}") or "0"
+        
+        # Get ping history
+        ping_history = redis_client.lrange("ping_history", 0, -1)
+        
+        # Get chat metrics
+        total_chats = redis_client.get("total_chats") or "0"
+        cache_hits = redis_client.get("cache_hits") or "0"
+        cache_misses = redis_client.get("cache_misses") or "0"
+        daily_chats = redis_client.get(f"daily_chats:{today}") or "0"
+        last_chat_activity = redis_client.get("last_chat_activity") or "Never"
+        
+        return {
+            "status": "healthy",
+            "timestamp": timestamp,
+            "redis_status": "connected",
+            "metrics": {
+                "total_pings": int(total_pings),
+                "daily_pings": int(daily_pings),
+                "last_ping": last_ping,
+                "last_activity": last_activity,
+                "ping_history_count": len(ping_history),
+                "recent_pings": ping_history[:5],  # Last 5 pings
+                "total_chats": int(total_chats),
+                "daily_chats": int(daily_chats),
+                "cache_hits": int(cache_hits),
+                "cache_misses": int(cache_misses),
+                "cache_hit_rate": round(int(cache_hits) / max(1, int(cache_hits) + int(cache_misses)) * 100, 2),
+                "last_chat_activity": last_chat_activity
+            }
+        }
+        
+    except Exception as e:
+        return {
+            "status": "error",
+            "timestamp": timestamp,
+            "error": str(e),
+            "redis_status": "error"
+        }
+
+@app.get("/session/{session_id}")
+async def get_session_history(session_id: str):
+    """Get chat history for a specific session."""
+    try:
+        if redis_client is None:
+            raise HTTPException(status_code=503, detail="Redis not available")
+        
+        # Get session history
+        session_data = redis_client.lrange(f"session:{session_id}", 0, -1)
+        
+        if not session_data:
+            return {"session_id": session_id, "messages": [], "message": "Session not found or expired"}
+        
+        # Parse JSON data
+        messages = []
+        for msg_json in session_data:
+            try:
+                msg = json.loads(msg_json)
+                messages.append(msg)
+            except json.JSONDecodeError:
+                continue
+        
+        return {
+            "session_id": session_id,
+            "message_count": len(messages),
+            "messages": messages
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/analytics")
+async def get_analytics():
+    """Get chat analytics and popular queries."""
+    try:
+        if redis_client is None:
+            raise HTTPException(status_code=503, detail="Redis not available")
+        
+        # Get popular queries (top 10)
+        popular_queries = redis_client.zrevrange("popular_queries", 0, 9, withscores=True)
+        
+        # Get daily chat counts for the last 7 days
+        daily_stats = {}
+        for i in range(7):
+            date = (datetime.now() - timedelta(days=i)).strftime("%Y-%m-%d")
+            count = redis_client.get(f"daily_chats:{date}") or "0"
+            daily_stats[date] = int(count)
+        
+        # Get cache statistics
+        cache_hits = int(redis_client.get("cache_hits") or "0")
+        cache_misses = int(redis_client.get("cache_misses") or "0")
+        total_requests = cache_hits + cache_misses
+        cache_hit_rate = round(cache_hits / max(1, total_requests) * 100, 2)
+        
+        return {
+            "timestamp": datetime.now().isoformat(),
+            "popular_queries": [{"query": q[0], "count": int(q[1])} for q in popular_queries],
+            "daily_chat_stats": daily_stats,
+            "cache_stats": {
+                "hits": cache_hits,
+                "misses": cache_misses,
+                "total_requests": total_requests,
+                "hit_rate_percent": cache_hit_rate
+            },
+            "total_chats": int(redis_client.get("total_chats") or "0")
+        }
+        
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

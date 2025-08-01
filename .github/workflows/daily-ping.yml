@@ -1,9 +1,9 @@
-name: Daily Ping to Web App
+name: Keep Redis Alive - Frequent Pings
 
 on:
   schedule:
-    # Run daily at 12:00 UTC (adjust timezone as needed)
-    - cron: '0 12 * * *'
+    # Run every 6 hours to keep Redis active
+    - cron: '0 */6 * * *'
   workflow_dispatch: # Allow manual triggering
 
 jobs:
@@ -20,6 +20,7 @@ jobs:
         WEBAPP_URL="${WEBAPP_URL:-https://terraria-chat.vercel.app}"
         
         echo "Pinging web app at: $WEBAPP_URL"
+        echo "Time: $(date)"
         
         # Ping the /ping endpoint
         response=$(curl -s -w "\n%{http_code}" "$WEBAPP_URL/ping")
@@ -39,8 +40,9 @@ jobs:
           ping_count=$(echo "$response_body" | grep -o '"ping_count":[0-9]*' | cut -d':' -f2)
           echo "Total ping count: $ping_count"
           
-          # You can add more processing here if needed
-          # For example, send notifications, log to external services, etc.
+          # Check if Redis is connected
+          redis_status=$(echo "$response_body" | grep -o '"redis_status":"[^"]*"' | cut -d'"' -f4)
+          echo "Redis status: $redis_status"
           
         else
           echo "❌ Failed to ping web app. HTTP Status: $http_code"
@@ -50,18 +52,18 @@ jobs:
         
     - name: Log ping result
       run: |
-        echo "Daily ping completed at $(date)"
+        echo "Redis keep-alive ping completed at $(date)"
         echo "Workflow run ID: ${{ github.run_id }}"
         echo "Repository: ${{ github.repository }}"
         
     - name: Notify on failure
       if: failure()
       run: |
-        echo "❌ Daily ping failed!"
+        echo "❌ Redis keep-alive ping failed!"
         echo "Check the workflow run for details: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
         
     - name: Notify on success
       if: success()
       run: |
-        echo "✅ Daily ping completed successfully!"
+        echo "✅ Redis keep-alive ping completed successfully!"
         echo "Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" 

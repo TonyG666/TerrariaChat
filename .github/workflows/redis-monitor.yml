@@ -1,0 +1,107 @@
+name: Redis Health Monitor
+
+on:
+  schedule:
+    # Run every 4 hours to monitor Redis health
+    - cron: '0 */4 * * *'
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  monitor-redis:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Check Redis Health
+      run: |
+        WEBAPP_URL="${WEBAPP_URL:-https://terraria-chat.vercel.app}"
+        
+        echo "=== Redis Health Check at $(date) ==="
+        
+        # Check basic ping
+        echo "1. Testing basic ping..."
+        ping_response=$(curl -s -w "\n%{http_code}" "$WEBAPP_URL/ping")
+        ping_http_code=$(echo "$ping_response" | tail -n1)
+        ping_body=$(echo "$ping_response" | head -n -1)
+        
+        if [ "$ping_http_code" -eq 200 ]; then
+          echo "✅ Basic ping successful"
+          ping_count=$(echo "$ping_body" | grep -o '"ping_count":[0-9]*' | cut -d':' -f2)
+          daily_pings=$(echo "$ping_body" | grep -o '"daily_pings":[0-9]*' | cut -d':' -f2)
+          echo "   Total pings: $ping_count"
+          echo "   Daily pings: $daily_pings"
+        else
+          echo "❌ Basic ping failed: $ping_http_code"
+          echo "$ping_body"
+        fi
+        
+        # Check detailed health
+        echo ""
+        echo "2. Testing detailed health..."
+        health_response=$(curl -s -w "\n%{http_code}" "$WEBAPP_URL/redis-health")
+        health_http_code=$(echo "$health_response" | tail -n1)
+        health_body=$(echo "$health_response" | head -n -1)
+        
+        if [ "$health_http_code" -eq 200 ]; then
+          echo "✅ Health check successful"
+          redis_status=$(echo "$health_body" | grep -o '"redis_status":"[^"]*"' | cut -d'"' -f4)
+          echo "   Redis status: $redis_status"
+          
+          # Extract metrics
+          total_pings=$(echo "$health_body" | grep -o '"total_pings":[0-9]*' | cut -d':' -f2)
+          daily_pings=$(echo "$health_body" | grep -o '"daily_pings":[0-9]*' | cut -d':' -f2)
+          last_ping=$(echo "$health_body" | grep -o '"last_ping":"[^"]*"' | cut -d'"' -f4)
+          total_chats=$(echo "$health_body" | grep -o '"total_chats":[0-9]*' | cut -d':' -f2)
+          daily_chats=$(echo "$health_body" | grep -o '"daily_chats":[0-9]*' | cut -d':' -f2)
+          
+          echo "   Total pings: $total_pings"
+          echo "   Daily pings: $daily_pings"
+          echo "   Total chats: $total_chats"
+          echo "   Daily chats: $daily_chats"
+          echo "   Last ping: $last_ping"
+        else
+          echo "❌ Health check failed: $health_http_code"
+          echo "$health_body"
+        fi
+        
+        # Test chat functionality
+        echo ""
+        echo "3. Testing chat functionality..."
+        chat_response=$(curl -s -w "\n%{http_code}" -X POST "$WEBAPP_URL/chat" \
+          -H "Content-Type: application/json" \
+          -d '{"content": "What is the Eye of Cthulhu?", "session_id": "test_session"}')
+        
+        chat_http_code=$(echo "$chat_response" | tail -n1)
+        chat_body=$(echo "$chat_response" | head -n -1)
+        
+        if [ "$chat_http_code" -eq 200 ]; then
+          echo "✅ Chat test successful"
+          session_id=$(echo "$chat_body" | grep -o '"session_id":"[^"]*"' | cut -d'"' -f4)
+          echo "   Session ID: $session_id"
+          
+          # Test session history
+          session_response=$(curl -s -w "\n%{http_code}" "$WEBAPP_URL/session/$session_id")
+          session_http_code=$(echo "$session_response" | tail -n1)
+          
+          if [ "$session_http_code" -eq 200 ]; then
+            echo "✅ Session history accessible"
+          else
+            echo "⚠️  Session history not accessible: $session_http_code"
+          fi
+        else
+          echo "❌ Chat test failed: $chat_http_code"
+          echo "$chat_body"
+        fi
+        
+        echo ""
+        echo "=== Health Check Complete ==="
+        
+    - name: Log monitoring result
+      run: |
+        echo "Redis health monitoring completed at $(date)"
+        echo "Workflow run ID: ${{ github.run_id }}"
+        
+    - name: Alert on Redis issues
+      if: failure()
+      run: |
+        echo "🚨 Redis health monitoring detected issues!"
+        echo "Check the workflow run for details: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" 
