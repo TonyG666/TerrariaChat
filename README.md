@@ -5,7 +5,7 @@ A comprehensive AI-powered chatbot for Terraria players, providing instant answe
 ## Features
 
 - 🎮 **Interactive Chat Interface**: Beautiful, responsive chat UI with Terraria-themed design
-- 🤖 **AI-Powered Responses**: Powered by Groq's Llama 3 for intelligent, context-aware answers
+- 🤖 **AI-Powered Responses**: Powered by Groq's GPT-OSS-120B for intelligent, context-aware answers
 - 🔍 **Smart Search**: Advanced search through Terraria knowledge base
 - 💾 **Session Management**: Persistent chat sessions with message history
 - ⚡ **Fast Performance**: Groq API provides lightning-fast responses
@@ -21,7 +21,7 @@ A comprehensive AI-powered chatbot for Terraria players, providing instant answe
 
 ### Backend
 - **FastAPI** (Python) for API server
-- **Groq API** (Llama 3) for natural language processing
+- **Groq API** (GPT-OSS-120B) for natural language processing
 - **Docker** for containerization
 
 ### Deployment
@@ -113,7 +113,7 @@ GROQ_API_KEY=your_groq_api_key_here
 - Progression guides
 
 ### Intelligent Responses
-- Context-aware answers using Groq's Llama 3
+- Context-aware answers using Groq's GPT-OSS-120B
 - Fallback responses for offline scenarios
 - Gaming-focused language and terminology
 - Practical tips and strategies
@@ -134,7 +134,7 @@ API Service Layer
     ↓
 FastAPI Backend
     ↓
-Groq API (Llama 3)
+Groq API (GPT-OSS-120B)
     ↓
 Enhanced Knowledge Base
 ```
@@ -156,4 +156,4 @@ For questions or issues, please open a GitHub issue or contact the maintainers.
 
 ---
 
-**Powered by Groq's Llama 3 • Built with React & FastAPI**
+**Powered by Groq's GPT-OSS-120B • Built with React & FastAPI**
