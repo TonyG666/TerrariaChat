@@ -130,8 +130,10 @@ Instructions:
         async with httpx.AsyncClient() as client:
             print(f"Making POST request to: {GROQ_API_URL}")
             print(f"Request headers: Authorization=Bearer {GROQ_API_KEY[:10]}..., Content-Type=application/json")
-            
-            response = await client.post(
+
+            # Use streaming interface to process Server-Sent-Events lines
+            async with client.stream(
+                "POST",
                 GROQ_API_URL,
                 headers={
                     "Authorization": f"Bearer {GROQ_API_KEY}",
@@ -150,14 +152,12 @@ Instructions:
                     "stream": True
                 },
                 timeout=30.0
-            )
-            
-            if response.status_code == 200:
-                # Handle streaming response
-                content = ""
-                for line in response.iter_lines():
-                    if line:
-                        line = line.decode('utf-8')
+            ) as response:
+                if response.status_code == 200:
+                    content = ""
+                    async for line in response.aiter_lines():
+                        if not line:
+                            continue
                         if line.startswith('data: '):
                             data_str = line[6:]  # Remove 'data: ' prefix
                             if data_str.strip() == '[DONE]':
@@ -170,17 +170,20 @@ Instructions:
                                         content += delta['content']
                             except json.JSONDecodeError:
                                 continue
-                return content if content else generate_fallback_response(prompt)
-            else:
-                print(f"Groq API error: {response.status_code}")
-                print(f"Response headers: {dict(response.headers)}")
-                try:
-                    error_detail = response.json()
-                    print(f"Error details: {error_detail}")
-                except Exception as e:
-                    print(f"Error parsing JSON: {e}")
-                    print(f"Error response text: {response.text}")
-                return generate_fallback_response(prompt)
+                    return content if content else generate_fallback_response(prompt)
+                else:
+                    print(f"Groq API error: {response.status_code}")
+                    print(f"Response headers: {dict(response.headers)}")
+                    try:
+                        error_detail = await response.aread()
+                        # Attempt to parse error as JSON if possible
+                        try:
+                            print(f"Error details: {json.loads(error_detail)}")
+                        except Exception:
+                            print(f"Error response text: {error_detail.decode('utf-8', 'ignore')}")
+                    except Exception as e:
+                        print(f"Error reading error body: {e}")
+                    return generate_fallback_response(prompt)
                 
     except Exception as e:
         print(f"Error calling Groq API: {e}")
